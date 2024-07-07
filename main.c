@@ -6,7 +6,7 @@ Student: antigo1989@gmail.com
 */
 
 #include "main.h"
-
+volatile uint32_t delay_send_usart=0;
 char bufferOUT[15] __attribute__((section(".fast"))) = {"USART-DMA OK!\r\n"};
 char bufferIN[15] __attribute__((section(".fast")));
 
@@ -22,10 +22,22 @@ int main(void) {
   DMA2_Stream0_Init();
   USART1_Init();
   DMA2_Stream7_Init();
-  
+  SysTick_Config(168000);
+  DMA2_Stream7->CR |= DMA_SxCR_EN;
+
   while(1){
+    if(delay_send_usart > 1000){
+      delay_send_usart = 0;
+      DMA2->HIFCR |= DMA_HIFCR_CTCIF7|DMA_HIFCR_CHTIF7|DMA_HIFCR_CFEIF7;
+      USART1->SR &= ~(USART_SR_TC);
+      DMA2_Stream7->CR |= DMA_SxCR_EN;
+    }
     __NOP();
   }
+}
+/**************************Interrupt function*****************************/
+void SysTick_Handler(void){
+  delay_send_usart++;
 }
 
 /****************************** function**********************************/
@@ -58,8 +70,8 @@ void DMA2_Stream7_Init(void){
   DMA2_Stream7->CR &= ~(DMA_SxCR_CIRC|DMA_SxCR_DIR);
   DMA2_Stream7->CR |= DMA_SxCR_MINC|DMA_SxCR_DIR_0; //mem(inc++) > per
   //start transfer
-  USART1->SR &= ~(USART_SR_TC);
-  DMA2_Stream7->CR |= DMA_SxCR_EN;
+  //USART1->SR &= ~(USART_SR_TC);
+  //DMA2_Stream7->CR |= DMA_SxCR_EN;
 }
 
 void USART1_Init(void){
